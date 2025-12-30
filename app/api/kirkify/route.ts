@@ -33,7 +33,7 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: "Perform a high-fidelity face swap. Image 1 is the facial source (Charlie Kirk). Image 2 is the target music album cover. Replace the faces of all individuals in Image 2 with the face from Image 1. You MUST maintain the original head positions, hair, clothing, and background of Image 2 exactly. Do not create new characters; only swap the internal facial features. Ensure the lighting, grain, and artistic style of the new faces perfectly match the original Image 2. Output only the modified Image 2.",
+                                text: "STRICT FACE SWAP TASK: Image 1 is the face source. Image 2 is the target. You MUST strictly overwrite ONLY the internal facial features (eyes, nose, mouth, chin) of every person in Image 2 with the face of Charlie Kirk from Image 1. DO NOT change the person's head shape, hair, body, clothing, position, or the overall composition of Image 2. The person count and their exact locations must remain identical. Think of this as a pixel-perfect facial mask replacement that blends into the original lighting and texture. Only output the modified Image 2.",
                             },
                             {
                                 type: "image_url",
