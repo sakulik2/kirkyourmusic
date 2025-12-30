@@ -15,27 +15,31 @@ export async function POST(req: Request) {
         // Prepare the image data (remove the data:image/...;base64, prefix)
         const base64Image = image.split(",")[1];
 
-        // Using Gemini 2.5 Flash Image (Nano Banana) via OpenRouter
-        // The prompt is crucial for high-fidelity face swap while maintaining the cover's style.
-        const prompt = "Detect the human face in this music album cover and replace it with the face of Charlie Kirk. Maintain the original lighting, texture, and artistic style of the album cover. The output should be the modified album cover only.";
+        // Reference image for Charlie Kirk from Wikimedia
+        const charlieKirkRef = "https://upload.wikimedia.org/wikipedia/commons/1/10/Charlie_Kirk_%2853952923573%29_%28headshot_cropped%29.jpg";
+
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 "Content-Type": "application/json",
-                "HTTP-Referer": "https://kym.vercel.app", // Optional for OpenRouter
-                "X-Title": "Kirk Your Music",
             },
             body: JSON.stringify({
                 model: "google/gemini-2.5-flash-image",
-                modalities: ["image", "text"], // Required for image generation/editing
+                modalities: ["image", "text"],
                 messages: [
                     {
                         role: "user",
                         content: [
                             {
                                 type: "text",
-                                text: "Artistically reimagine the character in this music cover with the recognizable facial features of Charlie Kirk. Maintain the original artistic medium, lighting, color palette, and surrounding environment. The result should look like it was originally part of the album artwork.",
+                                text: "I have provided two images. Image 1 is a reference photo of Charlie Kirk. Image 2 is a music album cover. Your task is to modify Image 2 by replacing the faces of the people in it with the face of Charlie Kirk from Image 1. Ensure the new faces blend perfectly with the original lighting, artistic style, and grain of the album cover. Result should be only the modified album cover.",
+                            },
+                            {
+                                type: "image_url",
+                                image_url: {
+                                    url: charlieKirkRef,
+                                },
                             },
                             {
                                 type: "image_url",
@@ -46,7 +50,7 @@ export async function POST(req: Request) {
                         ],
                     },
                 ],
-                // Adding safety settings to reduce blocking probability
+                // Keep safety settings to prevent blocking
                 safety_settings: [
                     { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
                     { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
