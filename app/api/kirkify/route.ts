@@ -33,7 +33,7 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: "SEAMLESS ARTISTIC FACE SWAP: Image 1 is Charlie Kirk (reference). Image 2 is a foundational composition. Perform an EXHAUSTIVE face swap for EVERY person. CRITICAL: The integration must be SEAMLESS. You MUST match the exact lighting, contrast, film grain, analog noise, and artistic medium of Image 2. If Image 2 is black and white, the new faces must be perfectly monochromatic with matching depth. If it is grainy, the new faces must have identical grain density. The faces should feel like they were captured by the same camera at the same moment. DO NOT change head shapes, hair, or surroundings. Output ONLY the modified Image 2.",
+                                text: "TASK: High-fidelity facial feature projection. Image 1 is the source face (Charlie Kirk). Image 2 is the target. MANDATORY: Replace the internal facial features (eyes, nose, mouth) of EVERY person in Image 2 with those from Image 1. 1. GEOMETRY: Maintain the original head shapes, jawlines, and hair silhouettes exactly. 2. EXPRESSION: Adapt the reference features to match the original emotions and head angles of the people in Image 2. 3. TEXTURE: Seamlessly blend the new features into the existing skin tone, film grain, and lighting of Image 2 so the transition is invisible. This should look like a professional deep-fake integration, not an overlay. Output ONLY the modified Image 2.",
                             },
                             {
                                 type: "image_url",
