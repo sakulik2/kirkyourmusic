@@ -15,7 +15,7 @@ export async function POST(req: Request) {
         // Prepare the image data (remove the data:image/...;base64, prefix)
         const base64Image = image.split(",")[1];
 
-        // Reference image for Charlie Kirk from Wikimedia
+        // Reference image for Charlie Kirk from Wikimedia (user updated)
         const charlieKirkRef = "https://upload.wikimedia.org/wikipedia/commons/1/10/Charlie_Kirk_%2853952923573%29_%28headshot_cropped%29.jpg";
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: "I have provided two images. Image 1 is a reference photo of Charlie Kirk. Image 2 is a music album cover. Your task is to modify Image 2 by replacing the faces of the people in it with the face of Charlie Kirk from Image 1. Ensure the new faces blend perfectly with the original lighting, artistic style, and grain of the album cover. Result should be only the modified album cover.",
+                                text: "Perform a high-fidelity face swap. Image 1 is the facial source (Charlie Kirk). Image 2 is the target music album cover. Replace the faces of all individuals in Image 2 with the face from Image 1. You MUST maintain the original head positions, hair, clothing, and background of Image 2 exactly. Do not create new characters; only swap the internal facial features. Ensure the lighting, grain, and artistic style of the new faces perfectly match the original Image 2. Output only the modified Image 2.",
                             },
                             {
                                 type: "image_url",
