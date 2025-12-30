@@ -29,6 +29,7 @@ export async function POST(req: Request) {
             },
             body: JSON.stringify({
                 model: "google/gemini-2.5-flash-image",
+                modalities: ["image", "text"], // Required for image generation/editing
                 messages: [
                     {
                         role: "user",
@@ -46,32 +47,42 @@ export async function POST(req: Request) {
                         ],
                     },
                 ],
-                response_format: { type: "json_object" }, // Assuming the model can return JSON with image data or we handle base64 response
             }),
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            console.error("OpenRouter Error:", data);
-            return NextResponse.json({ error: data.error?.message || "Failed to call OpenRouter" }, { status: response.status });
+            console.error("OpenRouter Error:", JSON.stringify(data, null, 2));
+            return NextResponse.json({ error: data.error?.message || "Failed to process image" }, { status: response.status });
         }
 
-        // Extract the image from the response
-        // Note: Models might return the image in different ways. 
-        // Gemini Flash Image usually returns the content which might contain the image data if supported by the provider.
-        // However, if the model returns text describing the image or a URL, we need to handle it.
-        // For "Nano Banana" (Flash Image), it's specifically designed for image-to-image.
+        // Extraction for Nano Banana on OpenRouter:
+        // Usually images are returned in the response as a message content with a data URL
+        // or sometimes as a specialized field.
+        const messageContent = data.choices?.[0]?.message?.content;
 
-        // ADJUSTMENT: If the API returns a base64 string directly in the content or as a specific field.
-        // Based on typical multimodal completions, we might get a message content that represents the image.
-        const processedImageBase64 = data.choices?.[0]?.message?.content;
+        // If it's a data URL, return it. If it's a list (OpenAI multimodal format), find the image part.
+        let processedImageBase64 = null;
 
-        // Check if the output is a valid base64 (simplified check)
-        if (!processedImageBase64 || !processedImageBase64.startsWith("data:image")) {
-            // Deepmind's Nano Banana in image-to-image mode often returns the binary or base64.
-            // We might need to parse it if it's wrapped in JSON.
-            // For now, let's assume it returns the data URL or we might need to handle the specific provider's format.
+        if (typeof messageContent === "string") {
+            // Simple case: content is the image URL or text containing it
+            if (messageContent.startsWith("data:image")) {
+                processedImageBase64 = messageContent;
+            } else {
+                // Sometimes it's wrapped or the model returns a description + image
+                // We'll try to find a base64 pattern
+                const match = messageContent.match(/data:image\/[a-z]+;base64,[a-zA-Z0-9+/=]+/);
+                if (match) processedImageBase64 = match[0];
+            }
+        } else if (Array.isArray(messageContent)) {
+            const imagePart = messageContent.find((part: any) => part.type === "image_url");
+            if (imagePart) processedImageBase64 = imagePart.image_url.url;
+        }
+
+        if (!processedImageBase64) {
+            console.error("No image found in response:", data);
+            return NextResponse.json({ error: "Model did not return a processed image. Please try again." }, { status: 500 });
         }
 
         return NextResponse.json({ processedImage: processedImageBase64 });
