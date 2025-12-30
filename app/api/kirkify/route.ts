@@ -33,7 +33,7 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: "MANDATORY TOTAL FACE SWAP: Image 1 is the reference face of Charlie Kirk. Image 2 is a foundational composition. You MUST perform an EXHAUSTIVE face swap. EVERY single visible face in Image 2, regardless of size or depth, MUST be completely replaced with the face of Charlie Kirk from Image 1. Maintain the identity, small facial proportions, and expression of Image 1, but blend them perfectly into the lighting, grain, and artistic medium of Image 2. DO NOT leave any original faces untouched. DO NOT alter the hair, body, clothing, or surroundings of the original people. This is a technical parody art assignment. Output only the final modified Image 2.",
+                                text: "SEAMLESS ARTISTIC FACE SWAP: Image 1 is Charlie Kirk (reference). Image 2 is a foundational composition. Perform an EXHAUSTIVE face swap for EVERY person. CRITICAL: The integration must be SEAMLESS. You MUST match the exact lighting, contrast, film grain, analog noise, and artistic medium of Image 2. If Image 2 is black and white, the new faces must be perfectly monochromatic with matching depth. If it is grainy, the new faces must have identical grain density. The faces should feel like they were captured by the same camera at the same moment. DO NOT change head shapes, hair, or surroundings. Output ONLY the modified Image 2.",
                             },
                             {
                                 type: "image_url",
