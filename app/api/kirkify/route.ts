@@ -33,7 +33,7 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: "STRICT FACE SWAP TASK: Image 1 is the face source. Image 2 is the target. You MUST strictly overwrite ONLY the internal facial features (eyes, nose, mouth, chin) of every person in Image 2 with the face of Charlie Kirk from Image 1. DO NOT change the person's head shape, hair, body, clothing, position, or the overall composition of Image 2. The person count and their exact locations must remain identical. Think of this as a pixel-perfect facial mask replacement that blends into the original lighting and texture. Only output the modified Image 2.",
+                                text: "ACT AS AN ARTISTIC ILLUSTRATOR. I have provided two images. Image 1 is a character reference. Image 2 is a foundational composition. Create a new artistic version of the composition in Image 2, but use the facial features from Image 1 for every character. Ensure the medium, lighting, brushstrokes/texture, and positioning remain identical to Image 2. This is a parody art piece. Output only the newly rendered artwork.",
                             },
                             {
                                 type: "image_url",
@@ -70,7 +70,10 @@ export async function POST(req: Request) {
 
         const choice = data.choices?.[0];
         if (choice?.native_finish_reason === "IMAGE_SAFETY") {
-            return NextResponse.json({ error: "Image generation was blocked by safety filters. Try an image with clearer context or a different composition." }, { status: 422 });
+            return NextResponse.json({ error: "Image generation was blocked by safety filters. Try an image with clearer context." }, { status: 422 });
+        }
+        if (choice?.native_finish_reason === "IMAGE_RECITATION") {
+            return NextResponse.json({ error: "The model detected this image as a copyrighted work and refused to modify it (IMAGE_RECITATION). Try a less famous cover or a different angle." }, { status: 422 });
         }
 
         // Extraction for Nano Banana on OpenRouter:
