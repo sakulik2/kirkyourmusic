@@ -71,30 +71,45 @@ export async function POST(req: Request) {
 
         // Extraction for Nano Banana on OpenRouter:
         // Usually images are returned in the response as a message content with a data URL
-        // or sometimes as a specialized field.
-        const messageContent = choice?.message?.content;
+        const message = choice?.message;
+        const content = message?.content;
 
-        // If it's a data URL, return it. If it's a list (OpenAI multimodal format), find the image part.
         let processedImageBase64 = null;
 
-        if (typeof messageContent === "string") {
-            // Simple case: content is the image URL or text containing it
-            if (messageContent.startsWith("data:image")) {
-                processedImageBase64 = messageContent;
-            } else {
-                // Sometimes it's wrapped or the model returns a description + image
-                // We'll try to find a base64 pattern
-                const match = messageContent.match(/data:image\/[a-z]+;base64,[a-zA-Z0-9+/=]+/);
-                if (match) processedImageBase64 = match[0];
+        // Recursive helper to find any string starting with "data:image" or an image_url object
+        const findImage = (obj: any): string | null => {
+            if (!obj) return null;
+            if (typeof obj === "string") {
+                if (obj.startsWith("data:image")) return obj;
+                const match = obj.match(/data:image\/[a-z]+;base64,[a-zA-Z0-9+/=]+/);
+                if (match) return match[0];
+                return null;
             }
-        } else if (Array.isArray(messageContent)) {
-            const imagePart = messageContent.find((part: any) => part.type === "image_url");
-            if (imagePart) processedImageBase64 = imagePart.image_url.url;
-        }
+            if (Array.isArray(obj)) {
+                for (const item of obj) {
+                    const found = findImage(item);
+                    if (found) return found;
+                }
+            }
+            if (typeof obj === "object") {
+                if (obj.type === "image_url" && obj.image_url?.url) return obj.image_url.url;
+                if (obj.url && typeof obj.url === "string" && obj.url.startsWith("data:image")) return obj.url;
+                for (const key in obj) {
+                    const found = findImage(obj[key]);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        processedImageBase64 = findImage(message);
 
         if (!processedImageBase64) {
-            console.error("No image found in response:", data);
-            return NextResponse.json({ error: "Model did not return a processed image. Please try again." }, { status: 500 });
+            console.error("No image found in response. Full Choice Object:", JSON.stringify(choice, null, 2));
+            return NextResponse.json({
+                error: "Model generated tokens but no image data was found in the response. Check logs.",
+                debug: choice
+            }, { status: 500 });
         }
 
         return NextResponse.json({ processedImage: processedImageBase64 });
