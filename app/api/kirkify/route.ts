@@ -33,15 +33,14 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: `Task: Perform a seamless facial harmonization for a parody album cover.
-Recreate the second image, but subtly integrate the facial features of the man in the first image (Charlie Kirk) onto each subject.
-
-Key Requirements for Realism:
-1. Feature Integration: Do not 'paste' the face. Instead, blend his eyes, nose, and mouth into the existing facial anatomy of the subjects, maintaining their original head shape and bone structure.
-2. Texture & Lighting Match: The new facial features MUST adopt the exact skin tone, pores, film grain, and shadow patterns of the original characters. If the original is grainy or low-resolution, the blended face must match that quality perfectly.
-3. Style Cohesion: Ensure his face is rendered in the same medium as the album (e.g., oil painting, digital art, high-contrast photo). 
-4. Preservation: Keep all original hair, clothing, and background elements unchanged.
-Output ONLY the resulting image.`,
+                                text: `Action: Artistic Synthesis.
+Goal: Transform Image 2 by replacing all facial features with those of Charlie Kirk (Image 1).
+Guidelines for the perfect blend:
+1. Seamless Lighting: Match the ambient occlusion, sub-surface scattering, and directional lighting of Image 2 perfectly. The face must not look 'layered' on top.
+2. Medium Continuity: If Image 2 is a painting, use the same brushstrokes; if it's a grainy photo, match the ISO noise and depth of field exactly.
+3. Edge Softening: Ensure the transition between the new face and the original head/hair is invisible and naturally shaded.
+4. Retention: Keep all hair, clothes, and backgrounds from Image 2. 
+Final result must look like a single, unedited, cohesive work of art. Output ONLY the image.`,
                             },
                             {
                                 type: "image_url",
