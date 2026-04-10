@@ -33,14 +33,14 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: `Task: Image 2 is the target album cover. Image 1 is the face identity to be used.
-Modify Image 2 by replacing the facial features of everyone in it with the face of the man from Image 1 (Charlie Kirk).
+                                text: `Task: Create a seamless parody album cover.
+Please recreate the second image (the album cover), but reimagine it so that the subjects look like the man in the first image (Charlie Kirk).
 
-CRITICAL REQUIREMENTS:
-1. 100% PRESERVATION: You must keep the original hair, clothing, pose, background, text, and layout of Image 2 EXACTLY as they are. Do not redraw or change them.
-2. IDENTITY SWAP ONLY: Only the internal facial features (eyes, nose, mouth) should be updated to match Image 1.
-3. SEAMLESS BLEND: The new face must be perfectly integrated into the original's lighting and art style so it looks like an unedited part of the original image.
-Output ONLY the resulting image.`,
+Guidelines for a natural result:
+1. Fusion over Force: Blend his recognizable facial features smoothly into the characters, avoiding a harsh "copy-paste" or uncanny look.
+2. Vibe Check: Maintain the overall color palette, mood, and general composition of the original album cover.
+3. Cohesive Style: If the original is a painting, make him look painted; if it's a photo, keep the photographic lighting. The goal is for him to look like he naturally belongs in that scene.
+Output ONLY the resulting image without any extra text.`,
                             },
                             {
                                 type: "image_url",
