@@ -33,7 +33,7 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: "Replace all the faces in the second image with the face from the first image (Charlie Kirk). The replaced faces must seamlessly adapt to the original lighting, skin tones, expressions, and art style of the second image. The final result should look completely natural. Output ONLY the modified image without any accompanying text.",
+                                text: "<task>\nYou are an expert image editor. Generate a completely new image that recreates the second image EXACTLY (matching composition, lighting, background, and art style). HOWEVER, you must replace the faces of EVERY person in the second image with the face of the man from the first image (Charlie Kirk).\n\nCRITICAL REQUIREMENTS:\n1. The new faces must blend seamlessly into the second image's lighting and style.\n2. Do NOT just return the original image. You MUST edit the faces.\n3. Output ONLY the new image, with no extra text.\n</task>",
                             },
                             {
                                 type: "image_url",
