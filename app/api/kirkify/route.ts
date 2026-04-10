@@ -33,7 +33,15 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: "<task>\nYou are an expert image editor. Generate a completely new image that recreates the second image EXACTLY (matching composition, lighting, background, and art style). HOWEVER, you must replace the faces of EVERY person in the second image with the face of the man from the first image (Charlie Kirk).\n\nCRITICAL REQUIREMENTS:\n1. The new faces must blend seamlessly into the second image's lighting and style.\n2. Do NOT just return the original image. You MUST edit the faces.\n3. Output ONLY the new image, with no extra text.\n</task>",
+                                text: `<task>
+You are an expert image editor. Your goal is to face-swap the characters in the second image using the face from the first image (Charlie Kirk), while MAINTAINING 100% of the second image's original art style.
+
+CRITICAL REQUIREMENTS:
+1. STRICT STYLE PRESERVATION: The overall image MUST keep the exact same art style, coloring, brush strokes, drawing medium, and aesthetics as the second image. If the second image is a cartoon, the new face must be drawn in that exact cartoon style. If it is a painting, the face must look painted.
+2. The face replacement should match the original poses, head angles, lighting, and expressions exactly.
+3. DO NOT just return the original image without edits. You must apply the face swap.
+4. Output ONLY the final generated image, with no extra text.
+</task>`,
                             },
                             {
                                 type: "image_url",
