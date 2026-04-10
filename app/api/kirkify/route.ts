@@ -33,9 +33,13 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: `Recreate the album cover from the second image, but with the man from the first image (Charlie Kirk) as the subject. 
-You must maintain the exact art style, lighting, and atmosphere of the original cover. 
-The face should look like it naturally belongs in the scene, matching the original orientation and expression perfectly.
+                                text: `Task: Image 2 is the target album cover. Image 1 is the face identity to be used.
+Modify Image 2 by replacing the facial features of everyone in it with the face of the man from Image 1 (Charlie Kirk).
+
+CRITICAL REQUIREMENTS:
+1. 100% PRESERVATION: You must keep the original hair, clothing, pose, background, text, and layout of Image 2 EXACTLY as they are. Do not redraw or change them.
+2. IDENTITY SWAP ONLY: Only the internal facial features (eyes, nose, mouth) should be updated to match Image 1.
+3. SEAMLESS BLEND: The new face must be perfectly integrated into the original's lighting and art style so it looks like an unedited part of the original image.
 Output ONLY the resulting image.`,
                             },
                             {
