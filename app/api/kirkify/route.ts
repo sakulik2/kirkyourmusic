@@ -40,6 +40,7 @@ Guidelines for a natural result:
 1. Fusion over Force: Blend his recognizable facial features smoothly into the characters, avoiding a harsh "copy-paste" or uncanny look.
 2. Vibe Check: Maintain the overall color palette, mood, and general composition of the original album cover.
 3. Cohesive Style: If the original is a painting, make him look painted; if it's a photo, keep the photographic lighting. The goal is for him to look like he naturally belongs in that scene.
+4. Keep Hair and Clothes: You MUST strictly preserve the original hairstyles, clothing, and accessories of the characters in the album cover. ONLY his face (eyes, nose, mouth, facial structure) should be transferred.
 Output ONLY the resulting image without any extra text.`,
                             },
                             {
