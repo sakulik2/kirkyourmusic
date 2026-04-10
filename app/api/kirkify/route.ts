@@ -33,15 +33,14 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: `<task>
-You are an expert image editor. Your goal is to face-swap the characters in the second image using the face from the first image (Charlie Kirk), while MAINTAINING 100% of the second image's original art style.
+                                text: `Task: Create a seamless parody album cover.
+Please recreate the second image (the album cover), but reimagine it so that the subjects look like the man in the first image (Charlie Kirk).
 
-CRITICAL REQUIREMENTS:
-1. STRICT STYLE PRESERVATION: The overall image MUST keep the exact same art style, coloring, brush strokes, drawing medium, and aesthetics as the second image. If the second image is a cartoon, the new face must be drawn in that exact cartoon style. If it is a painting, the face must look painted.
-2. The face replacement should match the original poses, head angles, lighting, and expressions exactly.
-3. DO NOT just return the original image without edits. You must apply the face swap.
-4. Output ONLY the final generated image, with no extra text.
-</task>`,
+Guidelines for a natural result:
+1. Fusion over Force: Blend his recognizable facial features smoothly into the characters, avoiding a harsh "copy-paste" or uncanny look.
+2. Vibe Check: Maintain the overall color palette, mood, and general composition of the original album cover.
+3. Cohesive Style: If the original is a painting, make him look painted; if it's a photo, keep the photographic lighting. The goal is for him to look like he naturally belongs in that scene.
+Output ONLY the resulting image without any extra text.`,
                             },
                             {
                                 type: "image_url",
