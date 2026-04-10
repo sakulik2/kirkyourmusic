@@ -33,7 +33,7 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: "TASK: High-fidelity facial feature projection. Image 1 is the source face (Charlie Kirk). Image 2 is the target. MANDATORY: Replace the internal facial features (eyes, nose, mouth) of EVERY person in Image 2 with those from Image 1. 1. GEOMETRY: Maintain the original head shapes, jawlines, and hair silhouettes exactly. 2. EXPRESSION: Adapt the reference features to match the original emotions and head angles of the people in Image 2. 3. TEXTURE: Seamlessly blend the new features into the existing skin tone, film grain, and lighting of Image 2 so the transition is invisible. This should look like a professional deep-fake integration, not an overlay. Output ONLY the modified Image 2.",
+                                text: "Replace all the faces in the second image with the face from the first image (Charlie Kirk). The replaced faces must seamlessly adapt to the original lighting, skin tones, expressions, and art style of the second image. The final result should look completely natural. Output ONLY the modified image without any accompanying text.",
                             },
                             {
                                 type: "image_url",
