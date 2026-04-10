@@ -33,14 +33,10 @@ export async function POST(req: Request) {
                         content: [
                             {
                                 type: "text",
-                                text: `Action: Artistic Synthesis.
-Goal: Transform Image 2 by replacing all facial features with those of Charlie Kirk (Image 1).
-Guidelines for the perfect blend:
-1. Seamless Lighting: Match the ambient occlusion, sub-surface scattering, and directional lighting of Image 2 perfectly. The face must not look 'layered' on top.
-2. Medium Continuity: If Image 2 is a painting, use the same brushstrokes; if it's a grainy photo, match the ISO noise and depth of field exactly.
-3. Edge Softening: Ensure the transition between the new face and the original head/hair is invisible and naturally shaded.
-4. Retention: Keep all hair, clothes, and backgrounds from Image 2. 
-Final result must look like a single, unedited, cohesive work of art. Output ONLY the image.`,
+                                text: `Recreate the album cover from the second image, but with the man from the first image (Charlie Kirk) as the subject. 
+You must maintain the exact art style, lighting, and atmosphere of the original cover. 
+The face should look like it naturally belongs in the scene, matching the original orientation and expression perfectly.
+Output ONLY the resulting image.`,
                             },
                             {
                                 type: "image_url",
