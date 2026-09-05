@@ -26,7 +26,7 @@ export default function RootLayout({
           </header>
           {children}
           <footer>
-            &copy; {new Date().getFullYear()} KYM - Powered by Nano Banana (Gemini 2.5 Flash Image)
+          &copy; {new Date().getFullYear()} KYM
           </footer>
         </div>
       </body>
