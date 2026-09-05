@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Provider = "openrouter" | "gemini";
+type Provider = "openai" | "gemini";
 
 export default function Home() {
     const [image, setImage] = useState<string | null>(null);
     const [result, setResult] = useState<string | null>(null);
-    const [provider, setProvider] = useState<Provider>("openrouter");
+    const [provider, setProvider] = useState<Provider>("openai");
     const [model, setModel] = useState("google/gemini-2.5-flash-image-preview");
     const [apiKey, setApiKey] = useState("");
     const [prompt, setPrompt] = useState("");
@@ -19,7 +19,7 @@ export default function Home() {
 
     useEffect(() => {
         const saved = localStorage.getItem("kym-settings");
-        if (saved) try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openrouter"; setProvider(p); setModel(s.model || (p === "gemini" ? "gemini-2.5-flash-image-preview" : "google/gemini-2.5-flash-image-preview")); setApiKey(s.apiKey || ""); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
+        if (saved) try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openai"; setProvider(p); setModel(s.model || (p === "gemini" ? "gemini-2.5-flash-image-preview" : "google/gemini-2.5-flash-image-preview")); setApiKey(s.apiKey || ""); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
     }, []);
     useEffect(() => { localStorage.setItem("kym-settings", JSON.stringify({ provider, model, apiKey, prompt, quality, size })); }, [provider, model, apiKey, prompt, quality, size]);
 
@@ -33,15 +33,15 @@ export default function Home() {
     return <main className="workspace">
         <section className="control-panel">
             <div className="panel-heading"><span className="status-dot" /> <div><strong>Generation Studio</strong><small>Image transformation workspace</small></div></div>
-            <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel(p === "gemini" ? "gemini-2.5-flash-image-preview" : "google/gemini-2.5-flash-image-preview"); }}><option value="openrouter">OpenRouter (compatible)</option><option value="gemini">Gemini</option></select></label>
+            <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel(p === "gemini" ? "gemini-2.5-flash-image-preview" : "google/gemini-2.5-flash-image-preview"); }}><option value="openai">OpenAI (OpenRouter compatible)</option><option value="gemini">Gemini</option></select></label>
             <label>Model<input value={model} onChange={e => setModel(e.target.value)} /></label>
             <label>API key<input type="password" placeholder="Uses server key when empty" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label>
-            {provider === "openrouter" && <p className="privacy-note">Use any OpenRouter compatible model, including OpenAI GPT Image models.</p>}
+            {provider === "openai" && <p className="privacy-note">Uses OpenRouter by default and supports compatible GPT Image models.</p>}
             <label>Prompt<textarea rows={7} placeholder="Optional instructions for the image edit" value={prompt} onChange={e => setPrompt(e.target.value)} /></label>
             <p className="privacy-note">Settings stay in this browser. Keys are sent only with your generation request.</p>
         </section>
         <section className="canvas-area">
-            <header className="canvas-header"><div><h1>Kirk Your Music</h1><p>Turn a cover into an original parody image.</p></div><span className="provider-badge">{provider === "gemini" ? "Gemini" : "OpenRouter"}</span></header>
+            <header className="canvas-header"><div><h1>Kirk Your Music</h1><p>Turn a cover into an original parody image.</p></div><span className="provider-badge">{provider === "gemini" ? "Gemini" : "OpenAI"}</span></header>
             <div className="dropzone" onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); onFile(e.dataTransfer.files[0]); }}>
                 <input ref={inputRef} type="file" accept="image/*" hidden onChange={e => onFile(e.target.files?.[0])} />
                 {image ? <img src={image} alt="Uploaded cover" /> : <><div className="upload-icon">↑</div><strong>Drop an image here</strong><span>or click to browse · PNG, JPG, WEBP</span></>}

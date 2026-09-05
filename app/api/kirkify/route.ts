@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const image = typeof body?.image === "string" ? body.image : "";
-        const provider = body?.provider === "gemini" ? "gemini" : "openrouter";
+        const provider = body?.provider === "gemini" ? "gemini" : "openai";
         const fallbackKey = provider === "gemini" ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY;
         const apiKey = typeof body?.apiKey === "string" && body.apiKey ? body.apiKey : fallbackKey;
         const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-2.5-flash-image-preview" : "google/gemini-2.5-flash-image-preview";
