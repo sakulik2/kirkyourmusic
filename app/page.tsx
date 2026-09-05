@@ -8,6 +8,7 @@ export default function Home() {
     const [image, setImage] = useState<string | null>(null);
     const [result, setResult] = useState<string | null>(null);
     const [provider, setProvider] = useState<Provider>("openai");
+    const [profile, setProfile] = useState("default");
     const [model, setModel] = useState("openai/gpt-image-2");
     const [apiKey, setApiKey] = useState("");
     const [baseUrl, setBaseUrl] = useState("https://openrouter.ai/api/v1");
@@ -18,14 +19,25 @@ export default function Home() {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const hydrated = useRef(false);
+
+    const loadProfile = (name: string) => {
+        const safeName = name.trim() || "default";
+        setProfile(safeName);
+        localStorage.setItem("kym-profile", safeName);
+        const saved = localStorage.getItem(`kym-settings:${safeName}`) || (safeName === "default" ? localStorage.getItem("kym-settings") : null);
+        if (!saved) return;
+        try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openai"; const defaultModel = p === "gemini" ? "gemini-3-pro-image-preview" : "openai/gpt-image-2"; const savedModel = typeof s.model === "string" ? s.model : ""; setProvider(p); setModel(p === "openai" && !savedModel.startsWith("openai/") || p === "gemini" && !savedModel.startsWith("gemini-") ? defaultModel : savedModel || defaultModel); setApiKey(s.apiKey || ""); setBaseUrl(s.baseUrl || "https://openrouter.ai/api/v1"); setApiMode(s.apiMode === "chat" ? "chat" : "responses"); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
+    };
 
     useEffect(() => {
-        const saved = localStorage.getItem("kym-settings");
-        if (saved) try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openai"; const defaultModel = p === "gemini" ? "gemini-3-pro-image-preview" : "openai/gpt-image-2"; const savedModel = typeof s.model === "string" ? s.model : ""; setProvider(p); setModel(p === "openai" && !savedModel.startsWith("openai/") || p === "gemini" && !savedModel.startsWith("gemini-") ? defaultModel : savedModel || defaultModel); setApiKey(s.apiKey || ""); setBaseUrl(s.baseUrl || "https://openrouter.ai/api/v1"); setApiMode(s.apiMode === "chat" ? "chat" : "responses"); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
+        loadProfile(localStorage.getItem("kym-profile") || "default");
+        hydrated.current = true;
     }, []);
-    useEffect(() => { localStorage.setItem("kym-settings", JSON.stringify({ provider, model, apiKey, baseUrl, apiMode, prompt, quality, size })); }, [provider, model, apiKey, baseUrl, apiMode, prompt, quality, size]);
+    useEffect(() => { if (hydrated.current) localStorage.setItem(`kym-settings:${profile}`, JSON.stringify({ provider, model, apiKey, baseUrl, apiMode, prompt, quality, size })); }, [provider, model, apiKey, baseUrl, apiMode, prompt, quality, size, profile]);
 
     const onFile = (file?: File) => { if (!file || !file.type.startsWith("image/")) return; const reader = new FileReader(); reader.onload = () => { setImage(String(reader.result)); setResult(null); setError(null); }; reader.readAsDataURL(file); };
+    useEffect(() => { const handlePaste = (event: ClipboardEvent) => { const file = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith("image/"))?.getAsFile(); if (file) { event.preventDefault(); onFile(file); } }; window.addEventListener("paste", handlePaste); return () => window.removeEventListener("paste", handlePaste); }, []);
     const generate = async () => {
         if (!image) return; setBusy(true); setError(null); setResult(null);
         try { const response = await fetch("/api/kirkify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image, provider, model, apiKey, baseUrl, apiMode, prompt, quality, size }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Generation failed"); setResult(data.processedImage); } catch (e: unknown) { setError(e instanceof Error ? e.message : "Generation failed"); } finally { setBusy(false); }
@@ -35,6 +47,7 @@ export default function Home() {
     return <main className="workspace">
         <section className="control-panel">
             <div className="panel-heading"><span className="status-dot" /> <div><strong>Generation Studio</strong><small>Image transformation workspace</small></div></div>
+            <label>User profile<div className="profile-row"><input value={profile} onChange={e => setProfile(e.target.value)} /><button className="btn" type="button" onClick={() => loadProfile(profile)}>Load</button></div></label>
             <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel(p === "gemini" ? "gemini-3-pro-image-preview" : "openai/gpt-image-2"); }}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>
             <label>Model{provider === "gemini" ? <select value={model} onChange={e => setModel(e.target.value)}><option value="gemini-3-pro-image-preview">Gemini 3 Pro Image</option><option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image</option><option value="gemini-3.1-flash-lite-image-preview">Gemini 3.1 Flash-Lite Image</option></select> : <select value={model} onChange={e => setModel(e.target.value)}><option value="openai/gpt-image-2">GPT Image 2</option><option value="openai/gpt-image-1">GPT Image 1</option></select>}</label>
             <label>API key<input type="password" placeholder="Uses server key when empty" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label>
@@ -48,7 +61,7 @@ export default function Home() {
             <header className="canvas-header"><div><h1>Kirk Your Music</h1><p>Turn a cover into an original parody image.</p></div><span className="provider-badge">{provider === "gemini" ? "Gemini" : "OpenAI"}</span></header>
             <div className="dropzone" onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); onFile(e.dataTransfer.files[0]); }}>
                 <input ref={inputRef} type="file" accept="image/*" hidden onChange={e => onFile(e.target.files?.[0])} />
-                {image ? <img src={image} alt="Uploaded cover" /> : <><div className="upload-icon">↑</div><strong>Drop an image here</strong><span>or click to browse · PNG, JPG, WEBP</span></>}
+                {image ? <img src={image} alt="Uploaded cover" /> : <><div className="upload-icon">↑</div><strong>Drop an image here</strong><span>or click to browse, or paste an image with Ctrl+V · PNG, JPG, WEBP</span></>}
             </div>
             <div className="result-box">{result ? <img src={result} alt="Generated parody" /> : busy ? <div className="loading-overlay"><div className="spinner" /><span>Generating with {model}...</span></div> : <span className="empty-state">Your generated image will appear here</span>}</div>
             {error && <p className="error-text">{error}</p>}
