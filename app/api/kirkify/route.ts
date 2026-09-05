@@ -24,6 +24,7 @@ export async function POST(req: Request) {
         const fallbackKey = provider === "gemini" ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY;
         const apiKey = typeof body?.apiKey === "string" && body.apiKey ? body.apiKey : fallbackKey;
         const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-2.5-flash-image-preview" : "openai/gpt-image-1";
+        const configuredBaseUrl = typeof body?.baseUrl === "string" ? body.baseUrl.trim() : "";
         const prompt = typeof body?.prompt === "string" && body.prompt.trim() ? body.prompt.trim() : defaultPrompt;
         const match = image.match(/^data:(image\/[a-z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/i);
         if (!match) return NextResponse.json({ error: "Image must be a valid base64 data URL" }, { status: 400 });
@@ -47,7 +48,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Gemini returned no image" }, { status: 502 });
         }
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        let baseUrl = "https://openrouter.ai/api/v1";
+        if (configuredBaseUrl) {
+            try {
+                const parsed = new URL(configuredBaseUrl);
+                if (parsed.protocol !== "https:" && parsed.hostname !== "localhost") throw new Error("API Base URL must use HTTPS");
+                baseUrl = configuredBaseUrl.replace(/\/$/, "");
+            } catch (error) {
+                return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid API Base URL" }, { status: 400 });
+            }
+        }
+        const response = await fetch(`${baseUrl}/chat/completions`, {
             method: "POST",
             headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
             body: JSON.stringify({ model, modalities: ["text", "image"], messages: [{ role: "user", content: [

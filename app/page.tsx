@@ -10,6 +10,7 @@ export default function Home() {
     const [provider, setProvider] = useState<Provider>("openai");
     const [model, setModel] = useState("openai/gpt-image-1");
     const [apiKey, setApiKey] = useState("");
+    const [baseUrl, setBaseUrl] = useState("https://openrouter.ai/api/v1");
     const [prompt, setPrompt] = useState("");
     const [quality, setQuality] = useState("auto");
     const [size, setSize] = useState("1024x1024");
@@ -19,14 +20,14 @@ export default function Home() {
 
     useEffect(() => {
         const saved = localStorage.getItem("kym-settings");
-        if (saved) try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openai"; const defaultModel = p === "gemini" ? "gemini-2.5-flash-image-preview" : "openai/gpt-image-1"; const savedModel = typeof s.model === "string" ? s.model : ""; setProvider(p); setModel(p === "openai" && !savedModel.startsWith("openai/") ? defaultModel : savedModel || defaultModel); setApiKey(s.apiKey || ""); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
+        if (saved) try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openai"; const defaultModel = p === "gemini" ? "gemini-2.5-flash-image-preview" : "openai/gpt-image-1"; const savedModel = typeof s.model === "string" ? s.model : ""; setProvider(p); setModel(p === "openai" && !savedModel.startsWith("openai/") ? defaultModel : savedModel || defaultModel); setApiKey(s.apiKey || ""); setBaseUrl(s.baseUrl || "https://openrouter.ai/api/v1"); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
     }, []);
-    useEffect(() => { localStorage.setItem("kym-settings", JSON.stringify({ provider, model, apiKey, prompt, quality, size })); }, [provider, model, apiKey, prompt, quality, size]);
+    useEffect(() => { localStorage.setItem("kym-settings", JSON.stringify({ provider, model, apiKey, baseUrl, prompt, quality, size })); }, [provider, model, apiKey, baseUrl, prompt, quality, size]);
 
     const onFile = (file?: File) => { if (!file || !file.type.startsWith("image/")) return; const reader = new FileReader(); reader.onload = () => { setImage(String(reader.result)); setResult(null); setError(null); }; reader.readAsDataURL(file); };
     const generate = async () => {
         if (!image) return; setBusy(true); setError(null); setResult(null);
-        try { const response = await fetch("/api/kirkify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image, provider, model, apiKey, prompt, quality, size }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Generation failed"); setResult(data.processedImage); } catch (e: unknown) { setError(e instanceof Error ? e.message : "Generation failed"); } finally { setBusy(false); }
+        try { const response = await fetch("/api/kirkify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image, provider, model, apiKey, baseUrl, prompt, quality, size }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Generation failed"); setResult(data.processedImage); } catch (e: unknown) { setError(e instanceof Error ? e.message : "Generation failed"); } finally { setBusy(false); }
     };
     const reset = () => { setImage(null); setResult(null); setError(null); };
 
@@ -36,6 +37,7 @@ export default function Home() {
             <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel(p === "gemini" ? "gemini-2.5-flash-image-preview" : "openai/gpt-image-1"); }}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>
             <label>Model<input value={model} onChange={e => setModel(e.target.value)} /></label>
             <label>API key<input type="password" placeholder="Uses server key when empty" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label>
+            {provider === "openai" && <label>API Base URL<input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.example.com/v1" /></label>}
             {provider === "openai" && <p className="privacy-note">Uses OpenRouter by default and supports compatible GPT Image models.</p>}
             <label>Prompt<textarea rows={7} placeholder="Optional instructions for the image edit" value={prompt} onChange={e => setPrompt(e.target.value)} /></label>
             <p className="privacy-note">Settings stay in this browser. Keys are sent only with your generation request.</p>
