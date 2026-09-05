@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         const provider = body?.provider === "gemini" ? "gemini" : "openai";
         const fallbackKey = provider === "gemini" ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY;
         const apiKey = typeof body?.apiKey === "string" && body.apiKey ? body.apiKey : fallbackKey;
-        const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-2.5-flash-image-preview" : "openai/gpt-image-1";
+        const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-3-pro-image-preview" : "openai/gpt-image-2";
         const configuredBaseUrl = typeof body?.baseUrl === "string" ? body.baseUrl.trim() : "";
         const apiMode = body?.apiMode === "chat" ? "chat" : "responses";
         const prompt = typeof body?.prompt === "string" && body.prompt.trim() ? body.prompt.trim() : defaultPrompt;
