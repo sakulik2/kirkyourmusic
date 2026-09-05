@@ -8,7 +8,7 @@ export default function Home() {
     const [image, setImage] = useState<string | null>(null);
     const [result, setResult] = useState<string | null>(null);
     const [provider, setProvider] = useState<Provider>("openai");
-    const [model, setModel] = useState("google/gemini-2.5-flash-image-preview");
+    const [model, setModel] = useState("openai/gpt-image-1");
     const [apiKey, setApiKey] = useState("");
     const [prompt, setPrompt] = useState("");
     const [quality, setQuality] = useState("auto");
@@ -19,7 +19,7 @@ export default function Home() {
 
     useEffect(() => {
         const saved = localStorage.getItem("kym-settings");
-        if (saved) try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openai"; setProvider(p); setModel(s.model || (p === "gemini" ? "gemini-2.5-flash-image-preview" : "google/gemini-2.5-flash-image-preview")); setApiKey(s.apiKey || ""); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
+        if (saved) try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openai"; const defaultModel = p === "gemini" ? "gemini-2.5-flash-image-preview" : "openai/gpt-image-1"; const savedModel = typeof s.model === "string" ? s.model : ""; setProvider(p); setModel(p === "openai" && !savedModel.startsWith("openai/") ? defaultModel : savedModel || defaultModel); setApiKey(s.apiKey || ""); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
     }, []);
     useEffect(() => { localStorage.setItem("kym-settings", JSON.stringify({ provider, model, apiKey, prompt, quality, size })); }, [provider, model, apiKey, prompt, quality, size]);
 
@@ -33,7 +33,7 @@ export default function Home() {
     return <main className="workspace">
         <section className="control-panel">
             <div className="panel-heading"><span className="status-dot" /> <div><strong>Generation Studio</strong><small>Image transformation workspace</small></div></div>
-            <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel(p === "gemini" ? "gemini-2.5-flash-image-preview" : "google/gemini-2.5-flash-image-preview"); }}><option value="openai">OpenAI (OpenRouter compatible)</option><option value="gemini">Gemini</option></select></label>
+            <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel(p === "gemini" ? "gemini-2.5-flash-image-preview" : "openai/gpt-image-1"); }}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>
             <label>Model<input value={model} onChange={e => setModel(e.target.value)} /></label>
             <label>API key<input type="password" placeholder="Uses server key when empty" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label>
             {provider === "openai" && <p className="privacy-note">Uses OpenRouter by default and supports compatible GPT Image models.</p>}

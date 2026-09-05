@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         const provider = body?.provider === "gemini" ? "gemini" : "openai";
         const fallbackKey = provider === "gemini" ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY;
         const apiKey = typeof body?.apiKey === "string" && body.apiKey ? body.apiKey : fallbackKey;
-        const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-2.5-flash-image-preview" : "google/gemini-2.5-flash-image-preview";
+        const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-2.5-flash-image-preview" : "openai/gpt-image-1";
         const prompt = typeof body?.prompt === "string" && body.prompt.trim() ? body.prompt.trim() : defaultPrompt;
         const match = image.match(/^data:(image\/[a-z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/i);
         if (!match) return NextResponse.json({ error: "Image must be a valid base64 data URL" }, { status: 400 });
