@@ -9,7 +9,7 @@ export default function Home() {
     const [result, setResult] = useState<string | null>(null);
     const [provider, setProvider] = useState<Provider>("openai");
     const [profile, setProfile] = useState("default");
-    const [model, setModel] = useState("openai/gpt-image-2");
+    const [model, setModel] = useState("gpt-image-2");
     const [apiKey, setApiKey] = useState("");
     const [baseUrl, setBaseUrl] = useState("https://openrouter.ai/api/v1");
     const [apiMode, setApiMode] = useState<"responses" | "chat">("responses");
@@ -27,7 +27,7 @@ export default function Home() {
         localStorage.setItem("kym-profile", safeName);
         const saved = localStorage.getItem(`kym-settings:${safeName}`) || (safeName === "default" ? localStorage.getItem("kym-settings") : null);
         if (!saved) return;
-        try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openai"; const defaultModel = p === "gemini" ? "gemini-3-pro-image-preview" : "openai/gpt-image-2"; const savedModel = typeof s.model === "string" ? s.model : ""; setProvider(p); setModel(p === "openai" && !savedModel.startsWith("openai/") || p === "gemini" && !savedModel.startsWith("gemini-") ? defaultModel : savedModel || defaultModel); setApiKey(s.apiKey || ""); setBaseUrl(s.baseUrl || "https://openrouter.ai/api/v1"); setApiMode(s.apiMode === "chat" ? "chat" : "responses"); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
+        try { const s = JSON.parse(saved); const p = s.provider === "gemini" ? "gemini" : "openai"; const defaultModel = p === "gemini" ? "gemini-3-pro-image-preview" : "gpt-image-2"; const savedModel = typeof s.model === "string" ? s.model.replace(/^openai\//, "") : ""; setProvider(p); setModel(p === "openai" && !savedModel.startsWith("gpt-image-") || p === "gemini" && !savedModel.startsWith("gemini-") ? defaultModel : savedModel || defaultModel); setApiKey(s.apiKey || ""); setBaseUrl(s.baseUrl || "https://openrouter.ai/api/v1"); setApiMode(s.apiMode === "chat" ? "chat" : "responses"); setPrompt(s.prompt || ""); setQuality(s.quality || "auto"); setSize(s.size || "1024x1024"); } catch { /* ignore invalid local settings */ }
     };
 
     useEffect(() => {
@@ -48,8 +48,8 @@ export default function Home() {
         <section className="control-panel">
             <div className="panel-heading"><span className="status-dot" /> <div><strong>Generation Studio</strong><small>Image transformation workspace</small></div></div>
             <label>User profile<div className="profile-row"><input value={profile} onChange={e => setProfile(e.target.value)} /><button className="btn" type="button" onClick={() => loadProfile(profile)}>Load</button></div></label>
-            <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel(p === "gemini" ? "gemini-3-pro-image-preview" : "openai/gpt-image-2"); }}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>
-            <label>Model{provider === "gemini" ? <select value={model} onChange={e => setModel(e.target.value)}><option value="gemini-3-pro-image-preview">Gemini 3 Pro Image</option><option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image</option><option value="gemini-3.1-flash-lite-image-preview">Gemini 3.1 Flash-Lite Image</option></select> : <select value={model} onChange={e => setModel(e.target.value)}><option value="openai/gpt-image-2">GPT Image 2</option><option value="openai/gpt-image-1">GPT Image 1</option></select>}</label>
+            <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel(p === "gemini" ? "gemini-3-pro-image-preview" : "gpt-image-2"); }}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>
+            <label>Model{provider === "gemini" ? <select value={model} onChange={e => setModel(e.target.value)}><option value="gemini-3-pro-image-preview">Gemini 3 Pro Image</option><option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image</option><option value="gemini-3.1-flash-lite-image-preview">Gemini 3.1 Flash-Lite Image</option></select> : <select value={model} onChange={e => setModel(e.target.value)}><option value="gpt-image-2">GPT Image 2</option><option value="gpt-image-1">GPT Image 1</option></select>}</label>
             <label>API key<input type="password" placeholder="Uses server key when empty" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label>
             {provider === "openai" && <label>API Base URL<input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.example.com/v1" /></label>}
             {provider === "openai" && <label>API<select value={apiMode} onChange={e => setApiMode(e.target.value as "responses" | "chat")}><option value="responses">Responses</option><option value="chat">Chat Completions</option></select></label>}

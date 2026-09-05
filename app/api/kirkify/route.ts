@@ -59,16 +59,20 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid API Base URL" }, { status: 400 });
             }
         }
+        const isOpenRouter = /(^|\.)openrouter\.ai$/i.test(new URL(baseUrl).hostname);
+        const requestModel = provider === "openai"
+            ? isOpenRouter ? (model.includes("/") ? model : `openai/${model}`) : model.replace(/^openai\//, "")
+            : model;
         const endpoint = apiMode === "responses" ? `${baseUrl}/responses` : `${baseUrl}/chat/completions`;
         const requestBody = apiMode === "responses" ? {
-            model,
+            model: requestModel,
             input: [{ role: "user", content: [
                 { type: "input_text", text: prompt },
                 { type: "input_image", image_url: `data:${mimeType};base64,${base64}` },
             ] }],
             tools: [{ type: "image_generation" }],
         } : {
-            model, modalities: ["text", "image"], messages: [{ role: "user", content: [
+            model: requestModel, modalities: ["text", "image"], messages: [{ role: "user", content: [
                 { type: "text", text: `${prompt}\nThe first image is the identity reference. The second image is the cover reference.` },
                 { type: "image_url", image_url: { url: "https://upload.wikimedia.org/wikipedia/commons/1/10/Charlie_Kirk_%2853952923573%29_%28headshot_cropped%29.jpg" } },
                 { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
