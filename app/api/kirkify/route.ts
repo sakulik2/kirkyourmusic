@@ -25,6 +25,7 @@ export async function POST(req: Request) {
         const apiKey = typeof body?.apiKey === "string" && body.apiKey ? body.apiKey : fallbackKey;
         const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-2.5-flash-image-preview" : "openai/gpt-image-1";
         const configuredBaseUrl = typeof body?.baseUrl === "string" ? body.baseUrl.trim() : "";
+        const apiMode = body?.apiMode === "chat" ? "chat" : "responses";
         const prompt = typeof body?.prompt === "string" && body.prompt.trim() ? body.prompt.trim() : defaultPrompt;
         const match = image.match(/^data:(image\/[a-z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/i);
         if (!match) return NextResponse.json({ error: "Image must be a valid base64 data URL" }, { status: 400 });
@@ -58,18 +59,30 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid API Base URL" }, { status: 400 });
             }
         }
-        const response = await fetch(`${baseUrl}/chat/completions`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ model, modalities: ["text", "image"], messages: [{ role: "user", content: [
+        const endpoint = apiMode === "responses" ? `${baseUrl}/responses` : `${baseUrl}/chat/completions`;
+        const requestBody = apiMode === "responses" ? {
+            model,
+            input: [{ role: "user", content: [
+                { type: "input_text", text: prompt },
+                { type: "input_image", image_url: `data:${mimeType};base64,${base64}` },
+            ] }],
+            tools: [{ type: "image_generation" }],
+        } : {
+            model, modalities: ["text", "image"], messages: [{ role: "user", content: [
                 { type: "text", text: `${prompt}\nThe first image is the identity reference. The second image is the cover reference.` },
                 { type: "image_url", image_url: { url: "https://upload.wikimedia.org/wikipedia/commons/1/10/Charlie_Kirk_%2853952923573%29_%28headshot_cropped%29.jpg" } },
                 { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
-            ] }] }),
+            ] }],
+        };
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
         });
         const data = await response.json();
         if (!response.ok) return NextResponse.json({ error: data.error?.message || "OpenRouter image generation failed" }, { status: response.status });
-        const result = extractDataUrl(data.choices?.[0]);
+        const responseResult = apiMode === "responses" ? data.output?.find((item: { type?: string; result?: string }) => item.type === "image_generation_call")?.result : null;
+        const result = responseResult ? `data:image/png;base64,${responseResult}` : extractDataUrl(data.choices?.[0]);
         if (!result) return NextResponse.json({ error: "Provider returned no image" }, { status: 502 });
         return NextResponse.json({ processedImage: result });
     } catch (error: unknown) {
