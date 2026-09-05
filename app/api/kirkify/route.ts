@@ -1,135 +1,68 @@
 import { NextResponse } from "next/server";
 
+const defaultPrompt = `Create an original, clearly fictional parody image inspired by the uploaded cover reference. Use the cover only for broad composition, color mood, pose, and visual style. Do not reproduce exact artwork, logos, typography, lyrics, or other distinctive copyrighted details; redraw the scene as a new work. Use the first image as the identity reference and give visible people a recognizable Charlie Kirk-like appearance adapted naturally to the reference medium. Return only the generated image.`;
+
+function extractDataUrl(value: unknown): string | null {
+    if (typeof value === "string") return value.startsWith("data:image/") ? value : null;
+    if (!value || typeof value !== "object") return null;
+    const record = value as Record<string, unknown>;
+    const nested = record.image_url as Record<string, unknown> | undefined;
+    if (typeof nested?.url === "string" && nested.url.startsWith("data:image/")) return nested.url;
+    if (typeof record.url === "string" && record.url.startsWith("data:image/")) return record.url;
+    for (const child of Object.values(record)) {
+        const found = extractDataUrl(child);
+        if (found) return found;
+    }
+    return null;
+}
+
 export async function POST(req: Request) {
     try {
-        const { image } = await req.json();
+        const body = await req.json();
+        const image = typeof body?.image === "string" ? body.image : "";
+        const provider = body?.provider === "gemini" ? "gemini" : "openrouter";
+        const fallbackKey = provider === "gemini" ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY;
+        const apiKey = typeof body?.apiKey === "string" && body.apiKey ? body.apiKey : fallbackKey;
+        const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-2.5-flash-image-preview" : "google/gemini-2.5-flash-image-preview";
+        const prompt = typeof body?.prompt === "string" && body.prompt.trim() ? body.prompt.trim() : defaultPrompt;
+        const match = image.match(/^data:(image\/[a-z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/i);
+        if (!match) return NextResponse.json({ error: "Image must be a valid base64 data URL" }, { status: 400 });
+        if (!apiKey) return NextResponse.json({ error: "API key is missing" }, { status: 500 });
+        const [, mimeType, rawBase64] = match;
+        const base64 = rawBase64.replace(/\s/g, "");
 
-        if (!image) {
-            return NextResponse.json({ error: "No image provided" }, { status: 400 });
+        if (provider === "gemini") {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ role: "user", parts: [
+                    { text: `${prompt}\nThe attached image is the cover reference. Create and return the edited image.` },
+                    { inlineData: { mimeType, data: base64 } },
+                ] }], generationConfig: { responseModalities: ["IMAGE", "TEXT"] } }),
+            });
+            const data = await response.json();
+            if (!response.ok) return NextResponse.json({ error: data.error?.message || "Gemini image generation failed" }, { status: response.status });
+            const part = data.candidates?.[0]?.content?.parts?.find((item: { inlineData?: { mimeType?: string; data?: string } }) => item.inlineData?.data);
+            if (part?.inlineData?.data) return NextResponse.json({ processedImage: `data:${part.inlineData.mimeType || "image/png"};base64,${part.inlineData.data}` });
+            return NextResponse.json({ error: "Gemini returned no image" }, { status: 502 });
         }
-
-        if (!process.env.OPENROUTER_API_KEY) {
-            return NextResponse.json({ error: "OpenRouter API Key is missing" }, { status: 500 });
-        }
-
-        // Prepare the image data (remove the data:image/...;base64, prefix)
-        const base64Image = image.split(",")[1];
-
-        // Reference image for Charlie Kirk from Wikimedia (user updated)
-        const charlieKirkRef = "https://upload.wikimedia.org/wikipedia/commons/1/10/Charlie_Kirk_%2853952923573%29_%28headshot_cropped%29.jpg";
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                model: "google/gemini-3.1-flash-image-preview",
-                modalities: ["image", "text"],
-                messages: [
-                    {
-                        role: "user",
-                        content: [
-                            {
-                                type: "text",
-                                text: `Task: Create a seamless parody album cover.
-Please recreate the second image (the album cover), but reimagine it so that the subjects look like the man in the first image (Charlie Kirk).
-
-Guidelines for a natural result:
-1. Fusion over Force: Blend his recognizable facial features smoothly into the characters, avoiding a harsh "copy-paste" or uncanny look.
-2. Vibe Check: Maintain the overall color palette, mood, and general composition of the original album cover.
-3. Cohesive Style: If the original is a painting, make him look painted; if it's a photo, keep the photographic lighting. The goal is for him to look like he naturally belongs in that scene.
-Output ONLY the resulting image without any extra text.`,
-                            },
-                            {
-                                type: "image_url",
-                                image_url: {
-                                    url: charlieKirkRef,
-                                },
-                            },
-                            {
-                                type: "image_url",
-                                image_url: {
-                                    url: `data:image/jpeg;base64,${base64Image}`,
-                                },
-                            },
-                        ],
-                    },
-                ],
-                // Keep safety settings to prevent blocking
-                safety_settings: [
-                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
-                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
-                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
-                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
-                    { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_ONLY_HIGH" },
-                ],
-            }),
+            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model, modalities: ["text", "image"], messages: [{ role: "user", content: [
+                { type: "text", text: `${prompt}\nThe first image is the identity reference. The second image is the cover reference.` },
+                { type: "image_url", image_url: { url: "https://upload.wikimedia.org/wikipedia/commons/1/10/Charlie_Kirk_%2853952923573%29_%28headshot_cropped%29.jpg" } },
+                { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+            ] }] }),
         });
-
         const data = await response.json();
-
-        if (!response.ok) {
-            console.error("OpenRouter Error:", JSON.stringify(data, null, 2));
-            return NextResponse.json({ error: data.error?.message || "Failed to process image" }, { status: response.status });
-        }
-
-        const choice = data.choices?.[0];
-        if (choice?.native_finish_reason === "IMAGE_SAFETY") {
-            return NextResponse.json({ error: "Image generation was blocked by safety filters. Try an image with clearer context." }, { status: 422 });
-        }
-        if (choice?.native_finish_reason === "IMAGE_RECITATION") {
-            return NextResponse.json({ error: "The model detected this image as a copyrighted work and refused to modify it (IMAGE_RECITATION). Try a less famous cover or a different angle." }, { status: 422 });
-        }
-
-        // Extraction for Nano Banana on OpenRouter:
-        // Usually images are returned in the response as a message content with a data URL
-        const message = choice?.message;
-        const content = message?.content;
-
-        let processedImageBase64 = null;
-
-        // Recursive helper to find any string starting with "data:image" or an image_url object
-        const findImage = (obj: any): string | null => {
-            if (!obj) return null;
-            if (typeof obj === "string") {
-                if (obj.startsWith("data:image")) return obj;
-                const match = obj.match(/data:image\/[a-z]+;base64,[a-zA-Z0-9+/=]+/);
-                if (match) return match[0];
-                return null;
-            }
-            if (Array.isArray(obj)) {
-                for (const item of obj) {
-                    const found = findImage(item);
-                    if (found) return found;
-                }
-            }
-            if (typeof obj === "object") {
-                if (obj.type === "image_url" && obj.image_url?.url) return obj.image_url.url;
-                if (obj.url && typeof obj.url === "string" && obj.url.startsWith("data:image")) return obj.url;
-                for (const key in obj) {
-                    const found = findImage(obj[key]);
-                    if (found) return found;
-                }
-            }
-            return null;
-        };
-
-        processedImageBase64 = findImage(message);
-
-        if (!processedImageBase64) {
-            console.error("No image found in response. Full Choice Object:", JSON.stringify(choice, null, 2));
-            return NextResponse.json({
-                error: "Model generated tokens but no image data was found in the response. Check logs.",
-                debug: choice
-            }, { status: 500 });
-        }
-
-        return NextResponse.json({ processedImage: processedImageBase64 });
-
-    } catch (error: any) {
-        console.error("API Route Error:", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        if (!response.ok) return NextResponse.json({ error: data.error?.message || "OpenRouter image generation failed" }, { status: response.status });
+        const result = extractDataUrl(data.choices?.[0]);
+        if (!result) return NextResponse.json({ error: "Provider returned no image" }, { status: 502 });
+        return NextResponse.json({ processedImage: result });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Internal Server Error";
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
