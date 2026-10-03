@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { withApiVersion } from "./lib/base-url";
 
 type Provider = "openai" | "gemini";
 type ApiMode = "images" | "responses" | "chat";
@@ -23,6 +24,36 @@ const renamedModels: Record<string, string> = {
 };
 const isImage25Model = (id: string) => id.startsWith("gpt-image-2.5-");
 
+// Keeps the cover and identity uploads together well under Vercel's ~4.5MB request body limit.
+const maxImageEdge = 2048;
+const maxDataUrlLength = 1_500_000;
+
+const readAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); });
+
+async function prepareImage(file: File): Promise<string> {
+    const original = await readAsDataUrl(file);
+    let bitmap: ImageBitmap;
+    try { bitmap = await createImageBitmap(file); } catch { return original; }
+    const scale = Math.min(1, maxImageEdge / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && original.length <= maxDataUrlLength) { bitmap.close(); return original; }
+    let width = Math.round(bitmap.width * scale);
+    let height = Math.round(bitmap.height * scale);
+    let quality = 0.9;
+    const canvas = document.createElement("canvas");
+    for (;;) {
+        canvas.width = width; canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) { bitmap.close(); return original; }
+        // JPEG has no alpha, so flatten transparency onto white instead of black.
+        context.fillStyle = "#fff"; context.fillRect(0, 0, width, height);
+        context.drawImage(bitmap, 0, 0, width, height);
+        const compressed = canvas.toDataURL("image/jpeg", quality);
+        if (compressed.length <= maxDataUrlLength || Math.max(width, height) <= 512) { bitmap.close(); return compressed; }
+        if (quality > 0.75) quality -= 0.1;
+        else { width = Math.round(width * 0.8); height = Math.round(height * 0.8); }
+    }
+}
+
 export default function Home() {
     const [image, setImage] = useState<string | null>(null);
     const [identity, setIdentity] = useState<string | null>(null);
@@ -44,6 +75,8 @@ export default function Home() {
     // Profile whose settings are currently loaded; settings are saved only under it.
     const [loadedProfile, setLoadedProfile] = useState<string | null>(null);
     const isOpenRouter = /^https:\/\/openrouter\.ai(\/|$)/i.test(baseUrl.trim());
+    const resolvedBaseUrl = (() => { try { return withApiVersion(baseUrl.trim()); } catch { return null; } })();
+    const showResolvedBaseUrl = resolvedBaseUrl !== null && resolvedBaseUrl !== baseUrl.trim().replace(/\/+$/, "");
     // GPT Image 2.5 is not on OpenRouter, and it does not support Chat Completions.
     const modelOptions = provider === "gemini" ? geminiModels : isOpenRouter ? openaiModels.filter(m => !isImage25Model(m.id)) : openaiModels;
     const activeModel = modelOptions.some(m => m.id === model) ? model : modelOptions[0].id;
@@ -84,7 +117,7 @@ export default function Home() {
     }, []);
     useEffect(() => { if (loadedProfile) localStorage.setItem(`kym-settings:${loadedProfile}`, JSON.stringify({ provider, model, apiKey, baseUrl, apiMode, prompt, quality, size, textOnly })); }, [provider, model, apiKey, baseUrl, apiMode, prompt, quality, size, textOnly, loadedProfile]);
 
-    const readImage = (file: File | undefined, onLoad: (dataUrl: string) => void) => { if (!file || !file.type.startsWith("image/")) return; const reader = new FileReader(); reader.onload = () => { onLoad(String(reader.result)); setResult(null); setError(null); }; reader.readAsDataURL(file); };
+    const readImage = async (file: File | undefined, onLoad: (dataUrl: string) => void) => { if (!file || !file.type.startsWith("image/")) return; try { onLoad(await prepareImage(file)); setResult(null); setError(null); } catch { setError("Could not read this image"); } };
     const onFile = (file?: File) => readImage(file, setImage);
     const onIdentityFile = (file?: File) => readImage(file, setIdentity);
     useEffect(() => { const handlePaste = (event: ClipboardEvent) => { const file = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith("image/"))?.getAsFile(); if (file) { event.preventDefault(); onFile(file); } }; window.addEventListener("paste", handlePaste); return () => window.removeEventListener("paste", handlePaste); }, []);
@@ -101,7 +134,7 @@ export default function Home() {
             <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel((p === "gemini" ? geminiModels : openaiModels)[0].id); }}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>
             <label>Model<select value={activeModel} onChange={e => setModel(e.target.value)}>{modelOptions.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
             <label>API key<input type="password" placeholder="Uses server key when empty" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label>
-            {provider === "openai" && <label>API Base URL<input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" /></label>}
+            {provider === "openai" && <label>API Base URL<input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" />{showResolvedBaseUrl && <small className="privacy-note">Requests go to {resolvedBaseUrl}</small>}</label>}
             {provider === "openai" && !isOpenRouter && <label>API<select value={activeApiMode} onChange={e => setApiMode(e.target.value as ApiMode)}><option value="images">Images</option><option value="responses">Responses</option>{!isImage25Model(activeModel) && <option value="chat">Chat Completions</option>}</select></label>}
             {usesImagesApi && <label>Quality<select value={activeQuality} onChange={e => setQuality(e.target.value)}>{qualityOptions.map(q => <option key={q} value={q}>{q}</option>)}</select></label>}
             {usesImagesApi && <label>Size<select value={size} onChange={e => setSize(e.target.value)}><option value="auto">auto</option><option value="1024x1024">1024x1024</option><option value="1536x1024">1536x1024</option><option value="1024x1536">1024x1536</option></select></label>}

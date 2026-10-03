@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { withApiVersion } from "../../lib/base-url";
 
 const coverInstructions = "Create an original, clearly fictional parody image inspired by the cover reference. Use the cover only for broad composition, color mood, pose, and visual style. Do not reproduce exact artwork, logos, typography, lyrics, or other distinctive copyrighted details; redraw the scene as a new work.";
 const identityInstructions = "Give the main visible person the appearance of the person in the identity reference, adapted naturally to the cover's medium.";
@@ -104,7 +105,7 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: "Invalid API Base URL" }, { status: 400 });
             }
             if (parsed.protocol !== "https:" && parsed.hostname !== "localhost") return NextResponse.json({ error: "API Base URL must use HTTPS" }, { status: 400 });
-            baseUrl = configuredBaseUrl.replace(/\/+$/, "");
+            baseUrl = withApiVersion(configuredBaseUrl);
         }
         const isOpenRouter = new URL(baseUrl).hostname.toLowerCase() === "openrouter.ai";
         // Never forward the server key to a user-chosen host.
