@@ -6,7 +6,7 @@ const imageOrderNote = "The first image is the identity reference. The second im
 const identityImageUrl = "https://upload.wikimedia.org/wikipedia/commons/1/10/Charlie_Kirk_%2853952923573%29_%28headshot_cropped%29.jpg";
 const defaultBaseUrl = "https://openrouter.ai/api/v1";
 // OpenRouter has no bare gpt-image-* models; they are exposed as GPT-5 image variants.
-const openRouterModels: Record<string, string> = { "gpt-image-2": "openai/gpt-5.4-image-2", "gpt-image-1": "openai/gpt-5-image" };
+const openRouterModels: Record<string, string> = { "gpt-image-2": "openai/gpt-5.4-image-2" };
 // The Responses API needs a mainline model; the image model goes in the image_generation tool.
 const responsesMainModel = "gpt-5.4";
 
@@ -24,6 +24,20 @@ async function getIdentityImage() {
 function upstreamError(data: unknown, fallback: string): string {
     const message = (data as { error?: { message?: unknown } } | null)?.error?.message;
     return typeof message === "string" && message ? message : fallback;
+}
+
+const imageQualities = ["auto", "low", "medium", "high", "xhigh", "max"];
+const imageSizes = ["auto", "1024x1024", "1536x1024", "1024x1536"];
+const isImage25Model = (model: string) => model.startsWith("gpt-image-2.5-");
+
+function parseDataUrl(value: string) {
+    const match = value.match(/^data:(image\/[a-z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/i);
+    return match ? { mimeType: match[1], base64: match[2].replace(/\s/g, "") } : null;
+}
+
+function toImageFile(base64: string, mimeType: string, name: string) {
+    const extension = mimeType.split("/")[1].replace(/[^a-z0-9]/gi, "");
+    return new File([Buffer.from(base64, "base64")], `${name}.${extension}`, { type: mimeType });
 }
 
 function extractDataUrl(value: unknown): string | null {
@@ -46,15 +60,14 @@ export async function POST(req: Request) {
         const image = typeof body?.image === "string" ? body.image : "";
         const provider = body?.provider === "gemini" ? "gemini" : "openai";
         const userKey = typeof body?.apiKey === "string" ? body.apiKey.trim() : "";
-        const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-3-pro-image-preview" : "gpt-image-2";
+        const model = typeof body?.model === "string" && body.model ? body.model : provider === "gemini" ? "gemini-3-pro-image" : "gpt-image-2";
         const configuredBaseUrl = typeof body?.baseUrl === "string" ? body.baseUrl.trim() : "";
-        const prompt = typeof body?.prompt === "string" && body.prompt.trim() ? body.prompt.trim() : defaultPrompt;
-        const match = image.match(/^data:(image\/[a-z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/i);
-        if (!match) return NextResponse.json({ error: "Image must be a valid base64 data URL" }, { status: 400 });
-        const [, mimeType, rawBase64] = match;
-        const base64 = rawBase64.replace(/\s/g, "");
+        const userPrompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
+        const prompt = userPrompt || defaultPrompt;
 
         if (provider === "gemini") {
+            const cover = parseDataUrl(image);
+            if (!cover) return NextResponse.json({ error: "Image must be a valid base64 data URL" }, { status: 400 });
             const apiKey = userKey || process.env.GEMINI_API_KEY;
             if (!apiKey) return NextResponse.json({ error: "API key is missing" }, { status: 400 });
             const identity = await getIdentityImage();
@@ -64,7 +77,7 @@ export async function POST(req: Request) {
                 body: JSON.stringify({ contents: [{ role: "user", parts: [
                     { text: `${prompt}\n${imageOrderNote} Create and return the edited image.` },
                     { inlineData: identity },
-                    { inlineData: { mimeType, data: base64 } },
+                    { inlineData: { mimeType: cover.mimeType, data: cover.base64 } },
                 ] }], generationConfig: { responseModalities: ["IMAGE", "TEXT"] } }),
             });
             const data = await response.json().catch(() => null);
@@ -91,9 +104,49 @@ export async function POST(req: Request) {
         if (!apiKey) return NextResponse.json({ error: isOpenRouter ? "API key is missing" : "A custom API Base URL requires your own API key" }, { status: 400 });
 
         const bareModel = model.replace(/^openai\//, "");
+        if (isOpenRouter && isImage25Model(bareModel)) return NextResponse.json({ error: "GPT Image 2.5 models are not available on OpenRouter; use an OpenAI API Base URL and key" }, { status: 400 });
+        const requestedMode = body?.apiMode === "chat" || body?.apiMode === "images" ? body.apiMode : "responses";
         // OpenRouter image models are only reachable through Chat Completions with image modalities.
-        const apiMode = !isOpenRouter && body?.apiMode !== "chat" ? "responses" : "chat";
-        const coverUrl = `data:${mimeType};base64,${base64}`;
+        const apiMode = isOpenRouter ? "chat" : requestedMode;
+        if (apiMode === "chat" && isImage25Model(bareModel)) return NextResponse.json({ error: "GPT Image 2.5 models require the Images or Responses API" }, { status: 400 });
+
+        if (apiMode === "images") {
+            const quality = typeof body?.quality === "string" && imageQualities.includes(body.quality) ? body.quality : "auto";
+            const size = typeof body?.size === "string" && imageSizes.includes(body.size) ? body.size : "auto";
+            if ((quality === "xhigh" || quality === "max") && !isImage25Model(bareModel)) return NextResponse.json({ error: "xhigh and max quality require a GPT Image 2.5 model" }, { status: 400 });
+            let response: Response;
+            if (body?.textOnly === true) {
+                if (!userPrompt) return NextResponse.json({ error: "Text-only generation requires a prompt" }, { status: 400 });
+                response = await fetch(`${baseUrl}/images/generations`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ model: bareModel, prompt: userPrompt, n: 1, quality, size }),
+                });
+            } else {
+                // Reference images are only accepted by the edits endpoint, as multipart image[] fields.
+                const cover = parseDataUrl(image);
+                if (!cover) return NextResponse.json({ error: "Image must be a valid base64 data URL" }, { status: 400 });
+                const identity = await getIdentityImage();
+                const form = new FormData();
+                form.append("model", bareModel);
+                form.append("prompt", `${prompt}\n${imageOrderNote}`);
+                form.append("n", "1");
+                form.append("quality", quality);
+                form.append("size", size);
+                form.append("image[]", toImageFile(identity.data, identity.mimeType, "identity"));
+                form.append("image[]", toImageFile(cover.base64, cover.mimeType, "cover"));
+                response = await fetch(`${baseUrl}/images/edits`, { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form });
+            }
+            const data = await response.json().catch(() => null);
+            if (!response.ok) return NextResponse.json({ error: upstreamError(data, "Image generation failed") }, { status: response.status });
+            const b64 = data?.data?.[0]?.b64_json;
+            if (typeof b64 !== "string" || !b64) return NextResponse.json({ error: "Provider returned no image" }, { status: 502 });
+            return NextResponse.json({ processedImage: `data:image/png;base64,${b64}` });
+        }
+
+        const cover = parseDataUrl(image);
+        if (!cover) return NextResponse.json({ error: "Image must be a valid base64 data URL" }, { status: 400 });
+        const coverUrl = `data:${cover.mimeType};base64,${cover.base64}`;
         const requestBody = apiMode === "responses" ? {
             model: responsesMainModel,
             input: [{ role: "user", content: [

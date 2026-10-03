@@ -263,6 +263,8 @@ footer {
 .status-dot { width:8px; height:8px; background:#27ae60; border-radius:50%; }
 label { display:flex; flex-direction:column; gap:.35rem; font-size:.75rem; color:var(--muted); }
 input,select,textarea { width:100%; border:1px solid var(--border); border-radius:5px; padding:.55rem .65rem; background:var(--background); color:var(--foreground); font:inherit; font-size:.82rem; }
+.checkbox-row { flex-direction:row; align-items:center; gap:.5rem; }
+.checkbox-row input { width:auto; }
 textarea { resize:vertical; min-height:100px; }
 .two-col { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
 .profile-row { display:flex; gap:.4rem; }
