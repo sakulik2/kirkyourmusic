@@ -25,6 +25,7 @@ const isImage25Model = (id: string) => id.startsWith("gpt-image-2.5-");
 
 export default function Home() {
     const [image, setImage] = useState<string | null>(null);
+    const [identity, setIdentity] = useState<string | null>(null);
     const [result, setResult] = useState<string | null>(null);
     const [provider, setProvider] = useState<Provider>("openai");
     const [profile, setProfile] = useState("default");
@@ -39,6 +40,7 @@ export default function Home() {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const identityInputRef = useRef<HTMLInputElement>(null);
     // Profile whose settings are currently loaded; settings are saved only under it.
     const [loadedProfile, setLoadedProfile] = useState<string | null>(null);
     const isOpenRouter = /^https:\/\/openrouter\.ai(\/|$)/i.test(baseUrl.trim());
@@ -82,13 +84,15 @@ export default function Home() {
     }, []);
     useEffect(() => { if (loadedProfile) localStorage.setItem(`kym-settings:${loadedProfile}`, JSON.stringify({ provider, model, apiKey, baseUrl, apiMode, prompt, quality, size, textOnly })); }, [provider, model, apiKey, baseUrl, apiMode, prompt, quality, size, textOnly, loadedProfile]);
 
-    const onFile = (file?: File) => { if (!file || !file.type.startsWith("image/")) return; const reader = new FileReader(); reader.onload = () => { setImage(String(reader.result)); setResult(null); setError(null); }; reader.readAsDataURL(file); };
+    const readImage = (file: File | undefined, onLoad: (dataUrl: string) => void) => { if (!file || !file.type.startsWith("image/")) return; const reader = new FileReader(); reader.onload = () => { onLoad(String(reader.result)); setResult(null); setError(null); }; reader.readAsDataURL(file); };
+    const onFile = (file?: File) => readImage(file, setImage);
+    const onIdentityFile = (file?: File) => readImage(file, setIdentity);
     useEffect(() => { const handlePaste = (event: ClipboardEvent) => { const file = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith("image/"))?.getAsFile(); if (file) { event.preventDefault(); onFile(file); } }; window.addEventListener("paste", handlePaste); return () => window.removeEventListener("paste", handlePaste); }, []);
     const generate = async () => {
         if (!canGenerate) return; setBusy(true); setError(null); setResult(null);
-        try { const response = await fetch("/api/kirkify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: isTextOnly ? undefined : image, provider, model: activeModel, apiKey, baseUrl, apiMode: activeApiMode, prompt, quality: activeQuality, size, textOnly: isTextOnly }) }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.error || (response.status === 413 ? "Image is too large to upload" : `Generation failed (${response.status})`)); setResult(data.processedImage); } catch (e: unknown) { setError(e instanceof Error ? e.message : "Generation failed"); } finally { setBusy(false); }
+        try { const response = await fetch("/api/kirkify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: isTextOnly ? undefined : image, identity: isTextOnly ? undefined : identity ?? undefined, provider, model: activeModel, apiKey, baseUrl, apiMode: activeApiMode, prompt, quality: activeQuality, size, textOnly: isTextOnly }) }); const data = await response.json().catch(() => ({})); if (data.code === "moderation_blocked") throw new Error(`Blocked by the provider's content moderation. Change the images or prompt before retrying. (${data.error})`); if (!response.ok) throw new Error(data.error || (response.status === 413 ? "Images are too large to upload" : `Generation failed (${response.status})`)); setResult(data.processedImage); } catch (e: unknown) { setError(e instanceof Error ? e.message : "Generation failed"); } finally { setBusy(false); }
     };
-    const reset = () => { setImage(null); setResult(null); setError(null); };
+    const reset = () => { setImage(null); setIdentity(null); setResult(null); setError(null); };
 
     return <main className="workspace">
         <section className="control-panel">
@@ -101,7 +105,7 @@ export default function Home() {
             {provider === "openai" && !isOpenRouter && <label>API<select value={activeApiMode} onChange={e => setApiMode(e.target.value as ApiMode)}><option value="images">Images</option><option value="responses">Responses</option>{!isImage25Model(activeModel) && <option value="chat">Chat Completions</option>}</select></label>}
             {usesImagesApi && <label>Quality<select value={activeQuality} onChange={e => setQuality(e.target.value)}>{qualityOptions.map(q => <option key={q} value={q}>{q}</option>)}</select></label>}
             {usesImagesApi && <label>Size<select value={size} onChange={e => setSize(e.target.value)}><option value="auto">auto</option><option value="1024x1024">1024x1024</option><option value="1536x1024">1536x1024</option><option value="1024x1536">1024x1536</option></select></label>}
-            {usesImagesApi && <label className="checkbox-row"><input type="checkbox" checked={textOnly} onChange={e => setTextOnly(e.target.checked)} />Text only (ignore uploaded cover)</label>}
+            {usesImagesApi && <label className="checkbox-row"><input type="checkbox" checked={textOnly} onChange={e => setTextOnly(e.target.checked)} />Text only (ignore uploaded images)</label>}
             {provider === "openai" && <p className="privacy-note">{isOpenRouter ? "OpenRouter offers GPT Image 2 only. Set an OpenAI API Base URL and key to use GPT Image 2.5." : "A custom API Base URL requires your own API key."}</p>}
             <label>Prompt<textarea rows={7} placeholder={isTextOnly ? "Describe the image to generate (required)" : "Optional instructions for the image edit"} value={prompt} onChange={e => setPrompt(e.target.value)} /></label>
             <p className="privacy-note">Settings stay in this browser. Keys are sent only with your generation request.</p>
@@ -110,11 +114,15 @@ export default function Home() {
             <header className="canvas-header"><div><h1>Kirk Your Music</h1><p>Turn a cover into an original parody image.</p></div><span className="provider-badge">{provider === "gemini" ? "Gemini" : "OpenAI"}</span></header>
             <div className="dropzone" onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); onFile(e.dataTransfer.files[0]); }}>
                 <input ref={inputRef} type="file" accept="image/*" hidden onChange={e => onFile(e.target.files?.[0])} />
-                {image ? <img src={image} alt="Uploaded cover" /> : <><div className="upload-icon">↑</div><strong>Drop an image here</strong><span>or click to browse, or paste an image with Ctrl+V · PNG, JPG, WEBP</span></>}
+                {image ? <img src={image} alt="Uploaded cover" /> : <><div className="upload-icon">↑</div><strong>Drop a cover image here</strong><span>or click to browse, or paste an image with Ctrl+V · PNG, JPG, WEBP</span></>}
+            </div>
+            <div className="dropzone identity-dropzone" onClick={() => identityInputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); onIdentityFile(e.dataTransfer.files[0]); }}>
+                <input ref={identityInputRef} type="file" accept="image/*" hidden onChange={e => onIdentityFile(e.target.files?.[0])} />
+                {identity ? <img src={identity} alt="Identity reference" /> : <><strong>Optional: identity reference</strong><span>A photo of yourself, someone who agreed to it, or an original character</span></>}
             </div>
             <div className="result-box">{result ? <img src={result} alt="Generated parody" /> : busy ? <div className="loading-overlay"><div className="spinner" /><span>Generating with {activeModel}...</span></div> : <span className="empty-state">Your generated image will appear here</span>}</div>
             {error && <p className="error-text">{error}</p>}
-            <div className="action-row"><button className="btn" onClick={reset} disabled={!image && !result}>Reset</button><button className="btn btn-primary" onClick={generate} disabled={!canGenerate}>{busy ? "Generating..." : "Generate image"}</button></div>
+            <div className="action-row"><button className="btn" onClick={reset} disabled={!image && !identity && !result}>Reset</button><button className="btn btn-primary" onClick={generate} disabled={!canGenerate}>{busy ? "Generating..." : "Generate image"}</button></div>
         </section>
     </main>;
 }
