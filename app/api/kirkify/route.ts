@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { withApiVersion } from "../../lib/base-url";
+import { responsesMainModel } from "../../lib/models";
 
 const coverInstructions = "Create an original, clearly fictional parody image inspired by the cover reference. Use the cover only for broad composition, color mood, pose, and visual style. Do not reproduce exact artwork, logos, typography, lyrics, or other distinctive copyrighted details; redraw the scene as a new work.";
 const identityInstructions = "Give the main visible person the appearance of the person in the identity reference, adapted naturally to the cover's medium.";
 const defaultBaseUrl = "https://openrouter.ai/api/v1";
 // OpenRouter has no bare gpt-image-* models; they are exposed as GPT-5 image variants.
 const openRouterModels: Record<string, string> = { "gpt-image-2": "openai/gpt-5.4-image-2" };
-// The Responses API needs a mainline model; the image model goes in the image_generation tool.
-const responsesMainModel = "gpt-5.4";
 
 const moderationCodes = new Set(["moderation_blocked", "content_policy_violation"]);
 // Gemini reports blocked output through finish reasons rather than HTTP errors.

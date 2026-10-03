@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { withApiVersion } from "./lib/base-url";
+import { responsesMainModel } from "./lib/models";
 
 type Provider = "openai" | "gemini";
 type ApiMode = "images" | "responses" | "chat";
@@ -105,7 +106,8 @@ export default function Home() {
             setModel(options.some(m => m.id === savedModel) ? savedModel : options[0].id);
             setApiKey(s.apiKey || "");
             setBaseUrl(s.baseUrl || "https://openrouter.ai/api/v1");
-            setApiMode(s.apiMode === "chat" || s.apiMode === "responses" ? s.apiMode : "images");
+            // Settings saved before version 2 stored "responses" as the old default, so move them to Images.
+            setApiMode(s.apiMode === "chat" || (s.apiMode === "responses" && s.version >= 2) ? s.apiMode : "images");
             setPrompt(s.prompt || "");
             setQuality(typeof s.quality === "string" ? s.quality : "auto");
             setSize(typeof s.size === "string" ? s.size : "auto");
@@ -116,7 +118,7 @@ export default function Home() {
     useEffect(() => {
         loadProfile(localStorage.getItem("kym-profile") || "default");
     }, []);
-    useEffect(() => { if (loadedProfile) localStorage.setItem(`kym-settings:${loadedProfile}`, JSON.stringify({ provider, model, apiKey, baseUrl, apiMode, prompt, quality, size, textOnly })); }, [provider, model, apiKey, baseUrl, apiMode, prompt, quality, size, textOnly, loadedProfile]);
+    useEffect(() => { if (loadedProfile) localStorage.setItem(`kym-settings:${loadedProfile}`, JSON.stringify({ version: 2, provider, model, apiKey, baseUrl, apiMode, prompt, quality, size, textOnly })); }, [provider, model, apiKey, baseUrl, apiMode, prompt, quality, size, textOnly, loadedProfile]);
 
     const readImage = async (file: File | undefined, onLoad: (dataUrl: string) => void) => { if (!file || !file.type.startsWith("image/")) return; try { onLoad(await prepareImage(file)); setResult(null); setError(null); } catch { setError("Could not read this image"); } };
     const onFile = (file?: File) => readImage(file, setImage);
@@ -135,10 +137,10 @@ export default function Home() {
             <div className="panel-heading"><span className="status-dot" /> <div><strong>Generation Studio</strong><small>Image transformation workspace</small></div></div>
             <label>User profile<div className="profile-row"><input value={profile} onChange={e => setProfile(e.target.value)} /><button className="btn" type="button" onClick={() => loadProfile(profile)}>Load</button></div></label>
             <label>Provider<select value={provider} onChange={e => { const p = e.target.value as Provider; setProvider(p); setModel((p === "gemini" ? geminiModels : openaiModels)[0].id); }}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>
-            <label>Model<select value={activeModel} onChange={e => setModel(e.target.value)}>{modelOptions.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+            <label>Model<select value={activeModel} onChange={e => { setModel(e.target.value); if (isImage25Model(e.target.value)) setApiMode("images"); }}>{modelOptions.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
             <label>API key<input type="password" placeholder="Uses server key when empty" value={apiKey} onChange={e => setApiKey(e.target.value)} /></label>
             {provider === "openai" && <label>API Base URL<input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" />{showResolvedBaseUrl && <small className="privacy-note">Requests go to {resolvedBaseUrl}</small>}</label>}
-            {provider === "openai" && !isOpenRouter && <label>API<select value={activeApiMode} onChange={e => setApiMode(e.target.value as ApiMode)}><option value="images">Images</option><option value="responses">Responses</option>{!isImage25Model(activeModel) && <option value="chat">Chat Completions</option>}</select></label>}
+            {provider === "openai" && !isOpenRouter && <label>API<select value={activeApiMode} onChange={e => setApiMode(e.target.value as ApiMode)}><option value="images">Images</option><option value="responses">Responses</option>{!isImage25Model(activeModel) && <option value="chat">Chat Completions</option>}</select>{activeApiMode === "responses" && <small className="privacy-note">Responses mode runs through {responsesMainModel}, which bills its own text tokens on top of the image.</small>}</label>}
             {usesImagesApi && <label>Quality<select value={activeQuality} onChange={e => setQuality(e.target.value)}>{qualityOptions.map(q => <option key={q} value={q}>{q}</option>)}</select></label>}
             {usesImagesApi && <label>Size<select value={size} onChange={e => setSize(e.target.value)}><option value="auto">auto</option><option value="1024x1024">1024x1024</option><option value="1536x1024">1536x1024</option><option value="1024x1536">1024x1536</option></select></label>}
             {usesImagesApi && <label className="checkbox-row"><input type="checkbox" checked={textOnly} onChange={e => setTextOnly(e.target.checked)} />Text only (ignore uploaded images)</label>}
