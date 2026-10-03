@@ -72,6 +72,7 @@ export default function Home() {
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const identityInputRef = useRef<HTMLInputElement>(null);
+    const identityZoneRef = useRef<HTMLDivElement>(null);
     // Profile whose settings are currently loaded; settings are saved only under it.
     const [loadedProfile, setLoadedProfile] = useState<string | null>(null);
     const isOpenRouter = /^https:\/\/openrouter\.ai(\/|$)/i.test(baseUrl.trim());
@@ -120,7 +121,9 @@ export default function Home() {
     const readImage = async (file: File | undefined, onLoad: (dataUrl: string) => void) => { if (!file || !file.type.startsWith("image/")) return; try { onLoad(await prepareImage(file)); setResult(null); setError(null); } catch { setError("Could not read this image"); } };
     const onFile = (file?: File) => readImage(file, setImage);
     const onIdentityFile = (file?: File) => readImage(file, setIdentity);
-    useEffect(() => { const handlePaste = (event: ClipboardEvent) => { const file = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith("image/"))?.getAsFile(); if (file) { event.preventDefault(); onFile(file); } }; window.addEventListener("paste", handlePaste); return () => window.removeEventListener("paste", handlePaste); }, []);
+    // Pastes go to the identity box while it is hovered or focused, otherwise to the cover.
+    useEffect(() => { const handlePaste = (event: ClipboardEvent) => { const file = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith("image/"))?.getAsFile(); if (!file) return; event.preventDefault(); if (identityZoneRef.current?.matches(":hover, :focus-within")) onIdentityFile(file); else onFile(file); }; window.addEventListener("paste", handlePaste); return () => window.removeEventListener("paste", handlePaste); }, []);
+    const openOnKey = (event: React.KeyboardEvent, input: HTMLInputElement | null) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); input?.click(); } };
     const generate = async () => {
         if (!canGenerate) return; setBusy(true); setError(null); setResult(null);
         try { const response = await fetch("/api/kirkify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: isTextOnly ? undefined : image, identity: isTextOnly ? undefined : identity ?? undefined, provider, model: activeModel, apiKey, baseUrl, apiMode: activeApiMode, prompt, quality: activeQuality, size, textOnly: isTextOnly }) }); const data = await response.json().catch(() => ({})); if (data.code === "moderation_blocked") throw new Error(`Blocked by the provider's content moderation. Change the images or prompt before retrying. (${data.error})`); if (!response.ok) throw new Error(data.error || (response.status === 413 ? "Images are too large to upload" : `Generation failed (${response.status})`)); setResult(data.processedImage); } catch (e: unknown) { setError(e instanceof Error ? e.message : "Generation failed"); } finally { setBusy(false); }
@@ -145,13 +148,13 @@ export default function Home() {
         </section>
         <section className="canvas-area">
             <header className="canvas-header"><div><h1>Kirk Your Music</h1><p>Turn a cover into an original parody image.</p></div><span className="provider-badge">{provider === "gemini" ? "Gemini" : "OpenAI"}</span></header>
-            <div className="dropzone" onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); onFile(e.dataTransfer.files[0]); }}>
+            <div className="dropzone" role="button" tabIndex={0} aria-label="Upload cover image" onKeyDown={e => openOnKey(e, inputRef.current)} onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); onFile(e.dataTransfer.files[0]); }}>
                 <input ref={inputRef} type="file" accept="image/*" hidden onChange={e => onFile(e.target.files?.[0])} />
                 {image ? <img src={image} alt="Uploaded cover" /> : <><div className="upload-icon">↑</div><strong>Drop a cover image here</strong><span>or click to browse, or paste an image with Ctrl+V · PNG, JPG, WEBP</span></>}
             </div>
-            <div className="dropzone identity-dropzone" onClick={() => identityInputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); onIdentityFile(e.dataTransfer.files[0]); }}>
+            <div ref={identityZoneRef} className="dropzone identity-dropzone" role="button" tabIndex={0} aria-label="Upload identity reference" onKeyDown={e => openOnKey(e, identityInputRef.current)} onClick={() => identityInputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); onIdentityFile(e.dataTransfer.files[0]); }}>
                 <input ref={identityInputRef} type="file" accept="image/*" hidden onChange={e => onIdentityFile(e.target.files?.[0])} />
-                {identity ? <img src={identity} alt="Identity reference" /> : <><strong>Optional: identity reference</strong><span>A photo of yourself, someone who agreed to it, or an original character</span></>}
+                {identity ? <img src={identity} alt="Identity reference" /> : <><strong>Optional: identity reference</strong><span>A photo of yourself, someone who agreed to it, or an original character</span><span>Click, drop, or hover here and press Ctrl+V</span></>}
             </div>
             <div className="result-box">{result ? <img src={result} alt="Generated parody" /> : busy ? <div className="loading-overlay"><div className="spinner" /><span>Generating with {activeModel}...</span></div> : <span className="empty-state">Your generated image will appear here</span>}</div>
             {error && <p className="error-text">{error}</p>}
