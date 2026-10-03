@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "KYM - Kirk Your Music",
-  description: "Transform your favorite music covers with Charlie Kirk's face using Nano Banana LLM.",
+  description: "Turn a music cover into an original parody image with OpenAI or Gemini image models.",
 };
 
 export default function RootLayout({
@@ -12,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh">
+    <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -20,10 +20,6 @@ export default function RootLayout({
       </head>
       <body>
         <div className="container">
-          <header className="hero">
-            <h1>Kirk Your Music</h1>
-            <p>Upload a music album cover and let Charlie Kirk take over.</p>
-          </header>
           {children}
           <footer>
           &copy; {new Date().getFullYear()} KYM
