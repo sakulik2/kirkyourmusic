@@ -2,7 +2,7 @@
 
 ## Project Structure
 
-This repository is a Next.js App Router application. The main user interface is in `app/page.tsx`, with shared styles in `app/globals.css` and document metadata in `app/layout.tsx`. The image-generation endpoint is `app/api/kirkify/route.ts`. The `src/app` directory contains the unused create-next-app starter page and should not be used for the production route. Static assets belong in `public/`. Deployment notes are in `DEPLOYMENT_GUIDE.md`.
+This repository is a Next.js App Router application. The main user interface is in `app/page.tsx`, with shared styles in `app/globals.css` and document metadata in `app/layout.tsx`. The image-generation endpoint is `app/api/kirkify/route.ts`. Static assets belong in `public/`. Deployment notes are in `DEPLOYMENT_GUIDE.md`.
 
 ## Build, Test, and Development
 
